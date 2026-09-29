@@ -12,8 +12,9 @@ auto main(int argc, char** argv) -> int
         {
                 std::println(
                         stderr,
-                        "error: incorrect amount of arguments\nusage: {} "
-                        "INFILE OUTFILE",
+                        "error: incorrect amount of arguments\nexpected 2, got "
+                        "{}\nusage: {} INFILE OUTFILE",
+                        argc - 1,
                         program_name
                 );
                 return EXIT_FAILURE;
@@ -33,6 +34,25 @@ auto main(int argc, char** argv) -> int
         {
                 std::println(stderr, "error: failed to open {}", outfile_name);
                 return EXIT_FAILURE;
+        }
+
+        u8 byte;
+        while (infile_stream.read(reinterpret_cast<char*>(&byte), sizeof(byte)))
+        {
+                switch (byte)
+                {
+                default:
+                {
+                        std::println(
+                                stderr,
+                                "error: unknown opcode: {:04b} {:04b}",
+                                byte >> 4,
+                                byte & 0x0f
+                        );
+                        return EXIT_FAILURE;
+                }
+                break;
+                }
         }
 
         return EXIT_SUCCESS;
