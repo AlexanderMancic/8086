@@ -104,11 +104,11 @@ def main():
                             )
         file.writelines(lines)
 
-        # reg (no acc) <-> dir addr
+        # reg <-> dir addr
         lines = []
         for w in range(2):
             for d in range(2):
-                for reg_name in reg_names[w][1:]:
+                for reg_name in reg_names[w]:
                     for dir_addr in dir_addrs:
                         append_mov_line_with_d(lines, d, reg_name, dir_addr)
         file.writelines(lines)

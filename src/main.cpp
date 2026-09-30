@@ -15,6 +15,7 @@ using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
 constexpr u8 dir_addr = 0b110;
+constexpr u8 acc_reg = 0;
 constexpr std::array width_mods{"byte"sv, "word"sv};
 constexpr std::format_string<std::string_view&, std::string_view&> mov_fmt{
         "mov {}, {}\n"
@@ -85,14 +86,20 @@ auto read_i16(std::ifstream& infile_stream) -> i16
         return std::bit_cast<i16>(word);
 }
 
-auto disassemble_modrm(std::ifstream& infile_stream, bool w)
+auto disasm_dir_addr(std::ifstream& infile_stream) -> std::string
+{
+        u16 dir_addr = read_word(infile_stream);
+        return std::format("[{}]", dir_addr);
+}
+
+auto disasm_modrm(std::ifstream& infile_stream, bool w)
         -> std::pair<u8, std::string>
 {
-        u8 byte = read_byte(infile_stream);
+        const u8 byte = read_byte(infile_stream);
 
-        Mod mod = static_cast<Mod>(byte >> 6);
-        u8 extension = (byte >> 3) & bitmask3;
-        u8 rm = byte & bitmask3;
+        const Mod mod = static_cast<Mod>(byte >> 6);
+        const u8 extension = (byte >> 3) & bitmask3;
+        const u8 rm = byte & bitmask3;
 
         std::string rm_operand;
 
@@ -100,10 +107,9 @@ auto disassemble_modrm(std::ifstream& infile_stream, bool w)
         {
         case Mod::MemModeNoDisp:
         {
-                if (dir_addr == rm)
+                if (rm == dir_addr)
                 {
-                        u16 dir_addr = read_word(infile_stream);
-                        rm_operand = std::format("[{}]", dir_addr);
+                        rm_operand = disasm_dir_addr(infile_stream);
                 }
                 else
                 {
@@ -146,7 +152,7 @@ auto disassemble_modrm(std::ifstream& infile_stream, bool w)
         return {extension, rm_operand};
 }
 
-auto disassemble_imm(std::ifstream& infile_stream, bool w) -> std::string
+auto disasm_imm(std::ifstream& infile_stream, bool w) -> std::string
 {
         i16 imm{};
         if (w)
@@ -163,8 +169,8 @@ auto disassemble_imm(std::ifstream& infile_stream, bool w) -> std::string
 auto write_mov(
         std::ofstream& outfile_stream,
         bool d,
-        std::string_view reg_name,
-        std::string_view eff_addr
+        std::string_view dst_if_d,
+        std::string_view src_if_d
 ) -> void
 {
         std::string_view dst;
@@ -172,13 +178,13 @@ auto write_mov(
 
         if (d)
         {
-                dst = reg_name;
-                src = eff_addr;
+                dst = dst_if_d;
+                src = src_if_d;
         }
         else
         {
-                dst = eff_addr;
-                src = reg_name;
+                dst = src_if_d;
+                src = dst_if_d;
         }
 
         outfile_stream << std::format(mov_fmt, dst, src);
@@ -236,11 +242,28 @@ auto main(int argc, char** argv) -> int
                         bool d = (byte >> 1) & 1;
                         bool w = byte & 1;
 
-                        auto [reg, rm_operand] =
-                                disassemble_modrm(infile_stream, w);
+                        auto [reg, rm_operand] = disasm_modrm(infile_stream, w);
                         std::string_view reg_operand{reg_names[w][reg]};
 
                         write_mov(outfile_stream, d, reg_operand, rm_operand);
+                }
+                break;
+
+                        // mov mem <-> acc
+                case 0xa0 ... 0xa3:
+                {
+                        bool pseudo_d = (byte >> 1) & 1;
+                        bool w = byte & 1;
+
+                        auto reg_operand = reg_names[w][acc_reg];
+                        auto dir_addr_operand = disasm_dir_addr(infile_stream);
+
+                        write_mov(
+                                outfile_stream,
+                                pseudo_d,
+                                dir_addr_operand,
+                                reg_operand
+                        );
                 }
                 break;
 
@@ -250,7 +273,7 @@ auto main(int argc, char** argv) -> int
                         bool w = (byte >> 3) & 1;
                         u8 reg = byte & bitmask3;
 
-                        auto imm_operand = disassemble_imm(infile_stream, w);
+                        auto imm_operand = disasm_imm(infile_stream, w);
 
                         write_mov(
                                 outfile_stream, reg_names[w][reg], imm_operand
@@ -264,7 +287,7 @@ auto main(int argc, char** argv) -> int
                         bool w = byte & 1;
 
                         auto [extension, rm_operand] =
-                                disassemble_modrm(infile_stream, w);
+                                disasm_modrm(infile_stream, w);
 
                         if (extension != 0)
                         {
@@ -272,7 +295,7 @@ auto main(int argc, char** argv) -> int
                                 return EXIT_FAILURE;
                         }
 
-                        auto imm_operand = disassemble_imm(infile_stream, w);
+                        auto imm_operand = disasm_imm(infile_stream, w);
 
                         write_mov(outfile_stream, rm_operand, imm_operand);
                 }
