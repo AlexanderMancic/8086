@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+from typing import Literal, TextIO
 
 reg_names = [
     ["al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"],
@@ -30,8 +31,21 @@ dir_addrs = [
 ]
 
 
+def append_mov_line(
+    lines: list[str], d: int, reg_operand: str, rm_operand: str
+) -> None:
+    if d == 1:
+        dst = reg_operand
+        src = rm_operand
+    else:
+        dst = rm_operand
+        src = reg_operand
+
+    lines.append(f"mov {dst}, {src}\n")
+
+
 def main():
-    script_name = sys.argv[0];
+    script_name = sys.argv[0]
     if len(sys.argv) != 2:
         sys.exit(f"usage: {script_name} OUTFILE")
 
@@ -40,42 +54,33 @@ def main():
         file.write("bits 16\n\n")
 
         # reg <-> reg
+        lines: list[str] = []
         for w in range(2):
             for dst in reg_names[w]:
                 for src in reg_names[w]:
-                    file.write(f"mov {dst}, {src}\n")
+                    lines.append(f"mov {dst}, {src}\n")
+        file.writelines(lines)
 
         # reg <-> eff_addr
+        lines: list[str] = []
         for w in range(2):
             for d in range(2):
-                for reg in reg_names[w]:
+                for reg_name in reg_names[w]:
                     for eff_addr in eff_addr_exprs:
                         if eff_addr == "bp":
                             continue
-
-                        if d == 1:
-                            dst = reg
-                            src = f"[{eff_addr} + 0]"
-                        else:
-                            dst = f"[{eff_addr} + 0]"
-                            src = reg
-
-                        file.write(f"mov {dst}, {src}\n")
+                        append_mov_line(lines, d, reg_name, f"[{eff_addr} + 0]")
+        file.writelines(lines)
 
         # reg <-> dir addr
+        lines: list[str] = []
         for w in range(2):
             for d in range(2):
-                for reg in reg_names[w][1:]:
+                for reg_name in reg_names[w][1:]:
                     for dir_addr in dir_addrs:
-                        if d == 1:
-                            dst = reg
-                            src = f"{dir_addr}"
-                        else:
-                            dst = f"{dir_addr}"
-                            src = reg
-
-                        file.write(f"mov {dst}, {src}\n")
+                        append_mov_line(lines, d, reg_name, dir_addr)
+        file.writelines(lines)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
