@@ -29,6 +29,23 @@ dir_addrs = [
     "[65534]",
     "[65535]",
 ]
+literals = [
+    # "- 32768",
+    # "- 32767",
+    # "- 256",
+    # "- 255",
+    "- 128",
+    "- 127",
+    "- 1",
+    "+ 0",
+    "+ 1",
+    "+ 126",
+    "+ 127",
+    # "+ 255",
+    # "+ 256",
+    # "+ 32766",
+    # "+ 32767",
+]
 
 
 def append_mov_line(
@@ -69,7 +86,13 @@ def main():
                     for eff_addr in eff_addr_exprs:
                         if eff_addr == "bp":
                             continue
-                        append_mov_line(lines, d, reg_name, f"[{eff_addr} + 0]")
+                        for lit in literals:
+                            append_mov_line(
+                                lines,
+                                d,
+                                reg_name,
+                                f"[{eff_addr} {lit}]",
+                            )
         file.writelines(lines)
 
         # reg <-> dir addr

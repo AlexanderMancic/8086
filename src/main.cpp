@@ -8,6 +8,7 @@
 
 using u8 = uint8_t;
 using u16 = uint16_t;
+using i8 = int8_t;
 using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
@@ -41,6 +42,20 @@ enum class Mod : u8
         MemMode16BitDisp,
         RegMode,
 };
+
+auto read_byte(std::ifstream& infile_stream) -> u8
+{
+        u8 byte;
+        if (!infile_stream.read(reinterpret_cast<char*>(&byte), sizeof(byte)))
+        {
+                std::println(
+                        stderr, "error: unexpeced EOF"
+
+                );
+                std::exit(EXIT_FAILURE);
+        }
+        return byte;
+}
 
 auto disassemble_mov(
         std::ofstream& outfile_stream,
@@ -108,16 +123,7 @@ auto main(int argc, char** argv) -> int
                         bool d = (byte >> 1) & 1;
                         bool w = byte & 1;
 
-                        if (!infile_stream.read(
-                                    reinterpret_cast<char*>(&byte), sizeof(byte)
-                            ))
-                        {
-                                std::println(
-                                        stderr, "error: unexpeced EOF"
-
-                                );
-                                return EXIT_FAILURE;
-                        }
+                        byte = read_byte(infile_stream);
                         Mod mod = static_cast<Mod>(byte >> 6);
                         u8 reg = (byte >> 3) & bitmask3;
                         u8 rm = byte & bitmask3;
@@ -163,6 +169,20 @@ auto main(int argc, char** argv) -> int
                                                 "[{}]", eff_addr_exprs[rm]
                                         );
                                 }
+                        }
+                        break;
+
+                        case Mod::MemMode8BitDisp:
+                        {
+                                byte = read_byte(infile_stream);
+                                i8 disp = std::bit_cast<i8>(byte);
+
+                                rm_operand = std::format(
+                                        "[{} {} {}]",
+                                        eff_addr_exprs[rm],
+                                        disp < 0 ? '-' : '+',
+                                        std::abs(disp)
+                                );
                         }
                         break;
 
