@@ -146,6 +146,20 @@ auto disassemble_modrm(std::ifstream& infile_stream, bool w)
         return {extension, rm_operand};
 }
 
+auto disassemble_imm(std::ifstream& infile_stream, bool w) -> std::string
+{
+        i16 imm{};
+        if (w)
+        {
+                imm = read_i16(infile_stream);
+        }
+        else
+        {
+                imm = read_i8(infile_stream);
+        }
+        return std::format("{} {}", width_mods[w], imm);
+}
+
 auto write_mov(
         std::ofstream& outfile_stream,
         bool d,
@@ -230,6 +244,20 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                        // mov imm -> reg
+                case 0xb0 ... 0xbf:
+                {
+                        bool w = (byte >> 3) & 1;
+                        u8 reg = byte & bitmask3;
+
+                        auto imm_operand = disassemble_imm(infile_stream, w);
+
+                        write_mov(
+                                outfile_stream, reg_names[w][reg], imm_operand
+                        );
+                }
+                break;
+
                         // mov imm -> rm
                 case 0xc6 ... 0xc7:
                 {
@@ -244,17 +272,7 @@ auto main(int argc, char** argv) -> int
                                 return EXIT_FAILURE;
                         }
 
-                        i16 imm{};
-                        if (w)
-                        {
-                                imm = read_i16(infile_stream);
-                        }
-                        else
-                        {
-                                imm = read_i8(infile_stream);
-                        }
-                        auto imm_operand =
-                                std::format("{} {}", width_mods[w], imm);
+                        auto imm_operand = disassemble_imm(infile_stream, w);
 
                         write_mov(outfile_stream, rm_operand, imm_operand);
                 }

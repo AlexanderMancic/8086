@@ -140,6 +140,19 @@ def main():
                     )
         file.writelines(lines)
 
+        # imm -> reg
+        lines = []
+        for w in range(2):
+            width_mod, lits_for_width = imm_literals[w]
+            for imm in lits_for_width:
+                for reg_name in reg_names[w]:
+                    append_mov_line_no_d(
+                        lines,
+                        reg_name,
+                        f"{width_mod} {imm}",
+                    )
+        file.writelines(lines)
+
 
 if __name__ == "__main__":
     main()
