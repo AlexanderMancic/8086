@@ -9,6 +9,7 @@
 using u8 = uint8_t;
 using u16 = uint16_t;
 using i8 = int8_t;
+using i16 = int16_t;
 using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
@@ -48,13 +49,26 @@ auto read_byte(std::ifstream& infile_stream) -> u8
         u8 byte;
         if (!infile_stream.read(reinterpret_cast<char*>(&byte), sizeof(byte)))
         {
-                std::println(
-                        stderr, "error: unexpeced EOF"
-
-                );
+                std::println(stderr, "error: unexpeced EOF");
                 std::exit(EXIT_FAILURE);
         }
         return byte;
+}
+
+auto read_word(std::ifstream& infile_stream) -> u16
+{
+        std::array<u8, 2> bytes;
+        if (!infile_stream.read(
+                    reinterpret_cast<char*>(bytes.data()),
+                    static_cast<std::streamsize>(bytes.size())
+            ))
+        {
+                std::println(stderr, "error: unexpected EOF");
+                return EXIT_FAILURE;
+        }
+        u8 lo = bytes[0];
+        u8 hi = bytes[1];
+        return static_cast<u16>(lo) | static_cast<u16>(hi << 8);
 }
 
 auto disassemble_mov(
@@ -136,30 +150,7 @@ auto main(int argc, char** argv) -> int
                         {
                                 if (dir_addr == rm)
                                 {
-                                        std::array<u8, 2> bytes;
-                                        if (!infile_stream.read(
-                                                    reinterpret_cast<char*>(
-                                                            bytes.data()
-                                                    ),
-                                                    static_cast<
-                                                            std::streamsize>(
-                                                            bytes.size()
-                                                    )
-                                            ))
-                                        {
-                                                std::println(
-                                                        stderr,
-                                                        "error: unexpected EOF"
-                                                );
-                                                return EXIT_FAILURE;
-                                        }
-
-                                        u8 lo = bytes[0];
-                                        u8 hi = bytes[1];
-                                        u16 dir_addr =
-                                                static_cast<u16>(lo) |
-                                                static_cast<u16>(hi << 8);
-
+                                        u16 dir_addr = read_word(infile_stream);
                                         rm_operand =
                                                 std::format("[{}]", dir_addr);
                                 }
@@ -176,7 +167,19 @@ auto main(int argc, char** argv) -> int
                         {
                                 byte = read_byte(infile_stream);
                                 i8 disp = std::bit_cast<i8>(byte);
+                                rm_operand = std::format(
+                                        "[{} {} {}]",
+                                        eff_addr_exprs[rm],
+                                        disp < 0 ? '-' : '+',
+                                        std::abs(disp)
+                                );
+                        }
+                        break;
 
+                        case Mod::MemMode16BitDisp:
+                        {
+                                u16 word = read_word(infile_stream);
+                                i16 disp = std::bit_cast<i16>(word);
                                 rm_operand = std::format(
                                         "[{} {} {}]",
                                         eff_addr_exprs[rm],
