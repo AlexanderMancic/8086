@@ -1,11 +1,13 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <format>
 #include <fstream>
 #include <print>
 #include <string_view>
 
 using u8 = uint8_t;
+using u16 = uint16_t;
 using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
@@ -128,16 +130,39 @@ auto main(int argc, char** argv) -> int
                         {
                                 if (dir_addr == rm)
                                 {
-                                        std::println(
-                                                stderr,
-                                                "error: direct address not "
-                                                "decoded yet"
-                                        );
-                                        return EXIT_FAILURE;
-                                }
+                                        std::array<u8, 2> bytes;
+                                        if (!infile_stream.read(
+                                                    reinterpret_cast<char*>(
+                                                            bytes.data()
+                                                    ),
+                                                    static_cast<
+                                                            std::streamsize>(
+                                                            bytes.size()
+                                                    )
+                                            ))
+                                        {
+                                                std::println(
+                                                        stderr,
+                                                        "error: unexpected EOF"
+                                                );
+                                                return EXIT_FAILURE;
+                                        }
 
-                                rm_operand =
-                                        std::format("[{}]", eff_addr_exprs[rm]);
+                                        u8 lo = bytes[0];
+                                        u8 hi = bytes[1];
+                                        u16 dir_addr =
+                                                static_cast<u16>(lo) |
+                                                static_cast<u16>(hi << 8);
+
+                                        rm_operand =
+                                                std::format("[{}]", dir_addr);
+                                }
+                                else
+                                {
+                                        rm_operand = std::format(
+                                                "[{}]", eff_addr_exprs[rm]
+                                        );
+                                }
                         }
                         break;
 
