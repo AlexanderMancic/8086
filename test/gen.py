@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 import sys
-from typing import Literal, TextIO
 
 reg_names = [
     ["al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"],
     ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di"],
 ]
-eff_addr_exprs = [
+eff_addr_exprs: list[str] = [
     "bx + si",
     "bx + di",
     "bp + si",
@@ -17,7 +16,7 @@ eff_addr_exprs = [
     "bp",
     "bx",
 ]
-dir_addrs = [
+dir_addrs: list[str] = [
     "[0]",
     "[1]",
     "[127]",
@@ -29,11 +28,7 @@ dir_addrs = [
     "[65534]",
     "[65535]",
 ]
-literals = [
-    "- 32768",
-    "- 32767",
-    "- 256",
-    "- 255",
+byte_literals: list[str] = [
     "- 128",
     "- 127",
     "- 1",
@@ -41,14 +36,24 @@ literals = [
     "+ 1",
     "+ 126",
     "+ 127",
+]
+word_literals: list[str] = byte_literals + [
+    "- 32768",
+    "- 32767",
+    "- 256",
+    "- 255",
     "+ 255",
     "+ 256",
     "+ 32766",
     "+ 32767",
 ]
+imm_literals: list[tuple[str, list[str]]] = [
+    ("byte", byte_literals),
+    ("word", word_literals),
+]
 
 
-def append_mov_line(
+def append_mov_line_with_d(
     lines: list[str], d: int, reg_operand: str, rm_operand: str
 ) -> None:
     if d == 1:
@@ -58,6 +63,10 @@ def append_mov_line(
         dst = rm_operand
         src = reg_operand
 
+    lines.append(f"mov {dst}, {src}\n")
+
+
+def append_mov_line_no_d(lines: list[str], dst: str, src: str) -> None:
     lines.append(f"mov {dst}, {src}\n")
 
 
@@ -79,15 +88,15 @@ def main():
         file.writelines(lines)
 
         # reg <-> eff_addr
-        lines: list[str] = []
+        lines = []
         for w in range(2):
             for d in range(2):
                 for reg_name in reg_names[w]:
                     for eff_addr in eff_addr_exprs:
                         if eff_addr == "bp":
                             continue
-                        for lit in literals:
-                            append_mov_line(
+                        for lit in word_literals:
+                            append_mov_line_with_d(
                                 lines,
                                 d,
                                 reg_name,
@@ -95,13 +104,40 @@ def main():
                             )
         file.writelines(lines)
 
-        # reg <-> dir addr
-        lines: list[str] = []
+        # reg (no acc) <-> dir addr
+        lines = []
         for w in range(2):
             for d in range(2):
                 for reg_name in reg_names[w][1:]:
                     for dir_addr in dir_addrs:
-                        append_mov_line(lines, d, reg_name, dir_addr)
+                        append_mov_line_with_d(lines, d, reg_name, dir_addr)
+        file.writelines(lines)
+
+        lines = []
+        # imm -> eff addr
+        for eff_addr in eff_addr_exprs:
+            if eff_addr == "bp":
+                continue
+            for disp in word_literals:
+                for width_mod, lit_for_width in imm_literals:
+                    for imm in lit_for_width:
+                        append_mov_line_no_d(
+                            lines,
+                            f"[{eff_addr} {disp}]",
+                            f"{width_mod} {imm}",
+                        )
+        file.writelines(lines)
+
+        # imm -> dir addr
+        lines = []
+        for width_mod, lit_for_width in imm_literals:
+            for imm in lit_for_width:
+                for dir_addr in dir_addrs:
+                    append_mov_line_no_d(
+                        lines,
+                        dir_addr,
+                        f"{width_mod} {imm}",
+                    )
         file.writelines(lines)
 
 

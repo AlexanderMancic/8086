@@ -5,6 +5,7 @@
 #include <fstream>
 #include <print>
 #include <string_view>
+#include <utility>
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -14,6 +15,7 @@ using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
 constexpr u8 dir_addr = 0b110;
+constexpr std::array width_mods{"byte"sv, "word"sv};
 constexpr std::format_string<std::string_view&, std::string_view&> mov_fmt{
         "mov {}, {}\n"
 };
@@ -71,7 +73,80 @@ auto read_word(std::ifstream& infile_stream) -> u16
         return static_cast<u16>(lo) | static_cast<u16>(hi << 8);
 }
 
-auto disassemble_mov(
+auto read_i8(std::ifstream& infile_stream) -> i8
+{
+        u8 byte = read_byte(infile_stream);
+        return std::bit_cast<i8>(byte);
+}
+
+auto read_i16(std::ifstream& infile_stream) -> i16
+{
+        u16 word = read_word(infile_stream);
+        return std::bit_cast<i16>(word);
+}
+
+auto disassemble_modrm(std::ifstream& infile_stream, bool w)
+        -> std::pair<u8, std::string>
+{
+        u8 byte = read_byte(infile_stream);
+
+        Mod mod = static_cast<Mod>(byte >> 6);
+        u8 extension = (byte >> 3) & bitmask3;
+        u8 rm = byte & bitmask3;
+
+        std::string rm_operand;
+
+        switch (mod)
+        {
+        case Mod::MemModeNoDisp:
+        {
+                if (dir_addr == rm)
+                {
+                        u16 dir_addr = read_word(infile_stream);
+                        rm_operand = std::format("[{}]", dir_addr);
+                }
+                else
+                {
+                        rm_operand = std::format("[{}]", eff_addr_exprs[rm]);
+                }
+        }
+        break;
+
+        case Mod::MemMode8BitDisp:
+        {
+                i8 disp = read_i8(infile_stream);
+                rm_operand = std::format(
+                        "[{} {} {}]",
+                        eff_addr_exprs[rm],
+                        disp < 0 ? '-' : '+',
+                        std::abs(disp)
+                );
+        }
+        break;
+
+        case Mod::MemMode16BitDisp:
+        {
+                i16 disp = read_i16(infile_stream);
+                rm_operand = std::format(
+                        "[{} {} {}]",
+                        eff_addr_exprs[rm],
+                        disp < 0 ? '-' : '+',
+                        std::abs(disp)
+                );
+        }
+        break;
+
+        case Mod::RegMode:
+        {
+                rm_operand = reg_names[w][rm];
+        }
+        break;
+        }
+
+        return {extension, rm_operand};
+}
+
+auto write_mov(
         std::ofstream& outfile_stream,
         bool d,
         std::string_view reg_name,
@@ -92,6 +167,15 @@ auto disassemble_mov(
                 src = reg_name;
         }
 
+        outfile_stream << std::format(mov_fmt, dst, src);
+}
+
+auto write_mov(
+        std::ofstream& outfile_stream,
+        std::string_view dst,
+        std::string_view src
+) -> void
+{
         outfile_stream << std::format(mov_fmt, dst, src);
 }
 
@@ -132,73 +216,47 @@ auto main(int argc, char** argv) -> int
         {
                 switch (byte)
                 {
+                        // mov rm <-> reg
                 case 0x88 ... 0x8b:
                 {
                         bool d = (byte >> 1) & 1;
                         bool w = byte & 1;
 
-                        byte = read_byte(infile_stream);
-                        Mod mod = static_cast<Mod>(byte >> 6);
-                        u8 reg = (byte >> 3) & bitmask3;
-                        u8 rm = byte & bitmask3;
-
+                        auto [reg, rm_operand] =
+                                disassemble_modrm(infile_stream, w);
                         std::string_view reg_operand{reg_names[w][reg]};
-                        std::string rm_operand;
-                        switch (mod)
-                        {
-                        case Mod::MemModeNoDisp:
-                        {
-                                if (dir_addr == rm)
-                                {
-                                        u16 dir_addr = read_word(infile_stream);
-                                        rm_operand =
-                                                std::format("[{}]", dir_addr);
-                                }
-                                else
-                                {
-                                        rm_operand = std::format(
-                                                "[{}]", eff_addr_exprs[rm]
-                                        );
-                                }
-                        }
-                        break;
 
-                        case Mod::MemMode8BitDisp:
-                        {
-                                byte = read_byte(infile_stream);
-                                i8 disp = std::bit_cast<i8>(byte);
-                                rm_operand = std::format(
-                                        "[{} {} {}]",
-                                        eff_addr_exprs[rm],
-                                        disp < 0 ? '-' : '+',
-                                        std::abs(disp)
-                                );
-                        }
-                        break;
+                        write_mov(outfile_stream, d, reg_operand, rm_operand);
+                }
+                break;
 
-                        case Mod::MemMode16BitDisp:
-                        {
-                                u16 word = read_word(infile_stream);
-                                i16 disp = std::bit_cast<i16>(word);
-                                rm_operand = std::format(
-                                        "[{} {} {}]",
-                                        eff_addr_exprs[rm],
-                                        disp < 0 ? '-' : '+',
-                                        std::abs(disp)
-                                );
-                        }
-                        break;
+                        // mov imm -> rm
+                case 0xc6 ... 0xc7:
+                {
+                        bool w = byte & 1;
 
-                        case Mod::RegMode:
+                        auto [extension, rm_operand] =
+                                disassemble_modrm(infile_stream, w);
+
+                        if (extension != 0)
                         {
-                                rm_operand = reg_names[w][rm];
-                        }
-                        break;
+                                std::println("error: invalid extension");
+                                return EXIT_FAILURE;
                         }
 
-                        disassemble_mov(
-                                outfile_stream, d, reg_operand, rm_operand
-                        );
+                        i16 imm{};
+                        if (w)
+                        {
+                                imm = read_i16(infile_stream);
+                        }
+                        else
+                        {
+                                imm = read_i8(infile_stream);
+                        }
+                        auto imm_operand =
+                                std::format("{} {}", width_mods[w], imm);
+
+                        write_mov(outfile_stream, rm_operand, imm_operand);
                 }
                 break;
 
