@@ -10,6 +10,9 @@ using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
 constexpr u8 dir_addr = 0b110;
+constexpr std::format_string<std::string_view&, std::string_view&> mov_fmt{
+        "mov {}, {}\n"
+};
 constexpr std::array<std::array<std::string_view, 8>, 2> reg_names{
         std::array{
                 "al"sv, "cl"sv, "dl"sv, "bl"sv, "ah"sv, "ch"sv, "dh"sv, "bh"sv
@@ -36,6 +39,30 @@ enum class Mod : u8
         MemMode16BitDisp,
         RegMode,
 };
+
+auto disassemble_mov(
+        std::ofstream& outfile_stream,
+        bool d,
+        std::string_view reg_name,
+        std::string_view eff_addr
+) -> void
+{
+        std::string_view dst;
+        std::string_view src;
+
+        if (d)
+        {
+                dst = reg_name;
+                src = eff_addr;
+        }
+        else
+        {
+                dst = eff_addr;
+                src = reg_name;
+        }
+
+        outfile_stream << std::format(mov_fmt, dst, src);
+}
 
 auto main(int argc, char** argv) -> int
 {
@@ -93,6 +120,8 @@ auto main(int argc, char** argv) -> int
                         u8 reg = (byte >> 3) & bitmask3;
                         u8 rm = byte & bitmask3;
 
+                        std::string_view reg_operand{reg_names[w][reg]};
+                        std::string rm_operand;
                         switch (mod)
                         {
                         case Mod::MemModeNoDisp:
@@ -107,50 +136,21 @@ auto main(int argc, char** argv) -> int
                                         return EXIT_FAILURE;
                                 }
 
-                                std::string dst;
-                                std::string src;
-
-                                if (d)
-                                {
-                                        dst = reg_names[w][reg];
-                                        src = std::format(
-                                                "[{}]", eff_addr_exprs[rm]
-                                        );
-                                }
-                                else
-                                {
-                                        dst = std::format(
-                                                "[{}]", eff_addr_exprs[rm]
-                                        );
-                                        src = reg_names[w][reg];
-                                }
-
-                                outfile_stream
-                                        << std::format("mov {},{}\n", dst, src);
+                                rm_operand =
+                                        std::format("[{}]", eff_addr_exprs[rm]);
                         }
                         break;
 
                         case Mod::RegMode:
                         {
-                                std::string_view dst;
-                                std::string_view src;
-
-                                if (d)
-                                {
-                                        dst = reg_names[w][reg];
-                                        src = reg_names[w][rm];
-                                }
-                                else
-                                {
-                                        dst = reg_names[w][rm];
-                                        src = reg_names[w][reg];
-                                }
-
-                                outfile_stream
-                                        << std::format("mov {},{}\n", dst, src);
+                                rm_operand = reg_names[w][rm];
                         }
                         break;
                         }
+
+                        disassemble_mov(
+                                outfile_stream, d, reg_operand, rm_operand
+                        );
                 }
                 break;
 
