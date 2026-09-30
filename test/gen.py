@@ -16,6 +16,18 @@ eff_addr_exprs = [
     "bp",
     "bx",
 ]
+dir_addrs = [
+    "[0]",
+    "[1]",
+    "[127]",
+    "[128]",
+    "[255]",
+    "[256]",
+    "[32767]",
+    "[32768]",
+    "[65534]",
+    "[65535]",
+]
 
 
 def main():
@@ -43,9 +55,23 @@ def main():
 
                         if d == 1:
                             dst = reg
-                            src = f"[{eff_addr}]"
+                            src = f"[{eff_addr} + 0]"
                         else:
-                            dst = f"[{eff_addr}]"
+                            dst = f"[{eff_addr} + 0]"
+                            src = reg
+
+                        file.write(f"mov {dst}, {src}\n")
+
+        # reg <-> dir addr
+        for w in range(2):
+            for d in range(2):
+                for reg in reg_names[w][1:]:
+                    for dir_addr in dir_addrs:
+                        if d == 1:
+                            dst = reg
+                            src = f"{dir_addr}"
+                        else:
+                            dst = f"{dir_addr}"
                             src = reg
 
                         file.write(f"mov {dst}, {src}\n")
