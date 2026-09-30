@@ -9,6 +9,7 @@ using u8 = uint8_t;
 using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
+constexpr u8 dir_addr = 0b110;
 constexpr std::array<std::array<std::string_view, 8>, 2> reg_names{
         std::array{
                 "al"sv, "cl"sv, "dl"sv, "bl"sv, "ah"sv, "ch"sv, "dh"sv, "bh"sv
@@ -16,6 +17,16 @@ constexpr std::array<std::array<std::string_view, 8>, 2> reg_names{
         std::array{
                 "ax"sv, "cx"sv, "dx"sv, "bx"sv, "sp"sv, "bp"sv, "si"sv, "di"sv
         },
+};
+constexpr std::array eff_addr_exprs{
+        "bx + si"sv,
+        "bx + di"sv,
+        "bp + si"sv,
+        "bp + di"sv,
+        "si"sv,
+        "di"sv,
+        "bp"sv,
+        "bx"sv,
 };
 
 enum class Mod : u8
@@ -84,6 +95,41 @@ auto main(int argc, char** argv) -> int
 
                         switch (mod)
                         {
+                        case Mod::MemModeNoDisp:
+                        {
+                                if (dir_addr == rm)
+                                {
+                                        std::println(
+                                                stderr,
+                                                "error: direct address not "
+                                                "decoded yet"
+                                        );
+                                        return EXIT_FAILURE;
+                                }
+
+                                std::string dst;
+                                std::string src;
+
+                                if (d)
+                                {
+                                        dst = reg_names[w][reg];
+                                        src = std::format(
+                                                "[{}]", eff_addr_exprs[rm]
+                                        );
+                                }
+                                else
+                                {
+                                        dst = std::format(
+                                                "[{}]", eff_addr_exprs[rm]
+                                        );
+                                        src = reg_names[w][reg];
+                                }
+
+                                outfile_stream
+                                        << std::format("mov {},{}\n", dst, src);
+                        }
+                        break;
+
                         case Mod::RegMode:
                         {
                                 std::string_view dst;
@@ -99,6 +145,7 @@ auto main(int argc, char** argv) -> int
                                         dst = reg_names[w][rm];
                                         src = reg_names[w][reg];
                                 }
+
                                 outfile_stream
                                         << std::format("mov {},{}\n", dst, src);
                         }
