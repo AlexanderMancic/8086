@@ -18,9 +18,10 @@ constexpr u8 dir_addr = 0b110;
 constexpr u8 acc_reg = 0;
 constexpr u8 max_sr_val = 3;
 constexpr std::array width_mods{"byte"sv, "word"sv};
-constexpr std::format_string<std::string_view&, std::string_view&> mov_fmt{
-        "mov {}, {}\n"
-};
+constexpr auto mov_mnem{"mov"sv};
+constexpr std::
+        format_string<std::string_view&, std::string_view&, std::string_view&>
+                bin_inst_fmt{"{} {}, {}\n"};
 constexpr std::array<std::array<std::string_view, 8>, 2> reg_names{
         std::array{
                 "al"sv, "cl"sv, "dl"sv, "bl"sv, "ah"sv, "ch"sv, "dh"sv, "bh"sv
@@ -40,6 +41,9 @@ constexpr std::array eff_addr_exprs{
         "bx"sv,
 };
 constexpr std::array sr_names{"es"sv, "cs"sv, "ss"sv, "ds"sv};
+constexpr std::array immed_mnems{
+        "add"sv, "or"sv, "adc"sv, "sbb"sv, "and"sv, "sub"sv, "xor"sv, "cmp"sv
+};
 
 enum class Mod : u8
 {
@@ -154,6 +158,14 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
         return {extension, rm_operand};
 }
 
+auto disasm_reg_rm(std::ifstream& infile_stream, bool w)
+        -> std::pair<std::string_view, std::string>
+{
+        auto [reg, rm_operand] = disasm_modrm(infile_stream, w);
+        auto reg_operand{reg_names[w][reg]};
+        return {reg_operand, rm_operand};
+}
+
 auto disasm_imm(std::ifstream& infile_stream, bool w) -> std::string
 {
         i16 imm{};
@@ -168,9 +180,10 @@ auto disasm_imm(std::ifstream& infile_stream, bool w) -> std::string
         return std::format("{} {}", width_mods[w], imm);
 }
 
-auto write_mov(
+auto write_inst(
         std::ofstream& outfile_stream,
         bool d,
+        std::string_view mnem,
         std::string_view dst_if_d,
         std::string_view src_if_d
 ) -> void
@@ -189,16 +202,42 @@ auto write_mov(
                 src = dst_if_d;
         }
 
-        outfile_stream << std::format(mov_fmt, dst, src);
+        outfile_stream << std::format(bin_inst_fmt, mnem, dst, src);
 }
 
-auto write_mov(
+auto write_inst(
         std::ofstream& outfile_stream,
+        std::string_view mnem,
         std::string_view dst,
         std::string_view src
 ) -> void
 {
-        outfile_stream << std::format(mov_fmt, dst, src);
+        outfile_stream << std::format(bin_inst_fmt, mnem, dst, src);
+}
+
+auto write_mov(
+        std::ofstream& outfile_stream,
+        bool d,
+        std::string_view dst_if_d,
+        std::string_view src_if_d
+) -> void
+{
+        write_inst(outfile_stream, d, mov_mnem, dst_if_d, src_if_d);
+}
+auto write_mov(
+        std::ofstream& outfile_stream,
+        std::string_view dst_if_d,
+        std::string_view src_if_d
+) -> void
+{
+        write_inst(outfile_stream, mov_mnem, dst_if_d, src_if_d);
+}
+
+auto decode_d_w(u8 byte) -> std::pair<bool, bool>
+{
+        bool d = (byte >> 1) & 1;
+        bool w = byte & 1;
+        return {d, w};
 }
 
 auto main(int argc, char** argv) -> int
@@ -238,14 +277,36 @@ auto main(int argc, char** argv) -> int
         {
                 switch (byte)
                 {
+                // immed rm <-> reg
+                case 0x00 ... 0x03:
+                case 0x10 ... 0x13:
+                case 0x20 ... 0x23:
+                case 0x30 ... 0x33:
+                case 0x08 ... 0x0b:
+                case 0x18 ... 0x1b:
+                case 0x28 ... 0x2b:
+                case 0x38 ... 0x3b:
+                {
+                        auto [d, w] = decode_d_w(byte);
+                        u8 immed = (byte >> 3) & bitmask3;
+
+                        auto [reg_operand, rm_operand] =
+                                disasm_reg_rm(infile_stream, w);
+                        auto mnem{immed_mnems[immed]};
+
+                        write_inst(
+                                outfile_stream, d, mnem, reg_operand, rm_operand
+                        );
+                }
+                break;
+
                         // mov rm <-> reg
                 case 0x88 ... 0x8b:
                 {
-                        bool d = (byte >> 1) & 1;
-                        bool w = byte & 1;
+                        auto [d, w] = decode_d_w(byte);
 
-                        auto [reg, rm_operand] = disasm_modrm(infile_stream, w);
-                        std::string_view reg_operand{reg_names[w][reg]};
+                        auto [reg_operand, rm_operand] =
+                                disasm_reg_rm(infile_stream, w);
 
                         write_mov(outfile_stream, d, reg_operand, rm_operand);
                 }
@@ -274,8 +335,7 @@ auto main(int argc, char** argv) -> int
                         // mov mem <-> acc
                 case 0xa0 ... 0xa3:
                 {
-                        bool pseudo_d = (byte >> 1) & 1;
-                        bool w = byte & 1;
+                        auto [pseudo_d, w] = decode_d_w(byte);
 
                         auto reg_operand = reg_names[w][acc_reg];
                         auto dir_addr_operand = disasm_dir_addr(infile_stream);
