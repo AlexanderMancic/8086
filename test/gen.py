@@ -66,14 +66,14 @@ for w in range(2):
 
 
 def append_mov_line_with_d(
-    lines: list[str], d: int, reg_operand: str, rm_operand: str
+    lines: list[str], d: int, dst_if_d: str, src_if_d: str
 ) -> None:
     if d == 1:
-        dst = reg_operand
-        src = rm_operand
+        dst = dst_if_d
+        src = src_if_d
     else:
-        dst = rm_operand
-        src = reg_operand
+        dst = src_if_d
+        src = dst_if_d
 
     lines.append(f"mov {dst}, {src}\n")
 
@@ -100,42 +100,15 @@ def main():
                         append_mov_line_with_d(lines, d, reg_operand, rm_operand)
         file.writelines(lines)
 
-        lines = []
-        # imm -> eff addr
-        for eff_addr in eff_addr_exprs:
-            if eff_addr == "bp":
-                continue
-            for disp in word_literals:
-                for width_mod, lit_for_width in imm_literals:
-                    for imm in lit_for_width:
-                        append_mov_line_no_d(
-                            lines,
-                            f"[{eff_addr} {disp}]",
-                            f"{width_mod} {imm}",
-                        )
-        file.writelines(lines)
-
-        # imm -> dir addr
-        lines = []
-        for width_mod, lit_for_width in imm_literals:
-            for imm in lit_for_width:
-                for dir_addr in dir_addrs:
-                    append_mov_line_no_d(
-                        lines,
-                        dir_addr,
-                        f"{width_mod} {imm}",
-                    )
-        file.writelines(lines)
-
-        # imm -> reg
+        # imm -> rm
         lines = []
         for w in range(2):
             width_mod, lits_for_width = imm_literals[w]
             for imm in lits_for_width:
-                for reg_name in reg_names[w]:
+                for rm_operand in rm_operands[w]:
                     append_mov_line_no_d(
                         lines,
-                        reg_name,
+                        rm_operand,
                         f"{width_mod} {imm}",
                     )
         file.writelines(lines)
