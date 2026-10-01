@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import sys
-from typing import TextIO
 
-reg_names = [
+reg_names: list[list[str]] = [
     ["al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"],
     ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di"],
 ]
+sr_names: list[str] = ["es", "cs", "ss", "ds"]
 eff_addr_exprs: list[str] = [
     "bx + si",
     "bx + di",
@@ -111,6 +111,15 @@ def main():
                         rm_operand,
                         f"{width_mod} {imm}",
                     )
+        file.writelines(lines)
+
+        # sr <-> rm
+        lines = []
+        w: int = 1
+        for d in range(2):
+            for rm_operand in rm_operands[w]:
+                for sr_operand in sr_names:
+                    append_mov_line_with_d(lines, d, sr_operand, rm_operand)
         file.writelines(lines)
 
 
