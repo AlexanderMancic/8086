@@ -52,6 +52,7 @@ imm_literals: list[tuple[str, list[str]]] = [
     ("byte", byte_literals),
     ("word", word_literals),
 ]
+mnems: list[str] = ["mov", "add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
 rm_operands: list[list[str]] = [[], []]
 for w in range(2):
     rm_operands[w].extend(reg_names[w])
@@ -63,6 +64,19 @@ for w in range(2):
 
         for disp in word_literals:
             rm_operands[w].append(f"[{eff_addr} {disp}]")
+
+
+def append_inst_line_with_d(
+    lines: list[str], d: int, mnem: str, dst_if_d: str, src_if_d: str
+) -> None:
+    if d == 1:
+        dst = dst_if_d
+        src = src_if_d
+    else:
+        dst = src_if_d
+        src = dst_if_d
+
+    lines.append(f"{mnem} {dst}, {src}\n")
 
 
 def append_mov_line_with_d(
@@ -95,9 +109,16 @@ def main():
         lines: list[str] = []
         for d in range(2):
             for w in range(2):
-                for rm_operand in rm_operands[w]:
-                    for reg_operand in reg_names[w]:
-                        append_mov_line_with_d(lines, d, reg_operand, rm_operand)
+                for mnem in mnems:
+                    for rm_operand in rm_operands[w]:
+                        for reg_operand in reg_names[w]:
+                            append_inst_line_with_d(
+                                lines,
+                                d,
+                                mnem,
+                                reg_operand,
+                                rm_operand,
+                            )
         file.writelines(lines)
 
         # imm -> rm
