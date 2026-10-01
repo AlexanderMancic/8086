@@ -53,6 +53,7 @@ enum class Mod : u8
         RegMode,
 };
 
+[[nodiscard]]
 auto read_byte(std::ifstream& infile_stream) -> u8
 {
         u8 byte;
@@ -64,6 +65,7 @@ auto read_byte(std::ifstream& infile_stream) -> u8
         return byte;
 }
 
+[[nodiscard]]
 auto read_word(std::ifstream& infile_stream) -> u16
 {
         std::array<u8, 2> bytes;
@@ -80,24 +82,28 @@ auto read_word(std::ifstream& infile_stream) -> u16
         return static_cast<u16>(lo) | static_cast<u16>(hi << 8);
 }
 
+[[nodiscard]]
 auto read_i8(std::ifstream& infile_stream) -> i8
 {
         u8 byte = read_byte(infile_stream);
         return std::bit_cast<i8>(byte);
 }
 
+[[nodiscard]]
 auto read_i16(std::ifstream& infile_stream) -> i16
 {
         u16 word = read_word(infile_stream);
         return std::bit_cast<i16>(word);
 }
 
+[[nodiscard]]
 auto disasm_dir_addr(std::ifstream& infile_stream) -> std::string
 {
         u16 dir_addr = read_word(infile_stream);
         return std::format("[{}]", dir_addr);
 }
 
+[[nodiscard]]
 auto disasm_modrm(std::ifstream& infile_stream, bool w)
         -> std::pair<u8, std::string>
 {
@@ -158,6 +164,7 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
         return {extension, rm_operand};
 }
 
+[[nodiscard]]
 auto disasm_reg_rm(std::ifstream& infile_stream, bool w)
         -> std::pair<std::string_view, std::string>
 {
@@ -166,6 +173,7 @@ auto disasm_reg_rm(std::ifstream& infile_stream, bool w)
         return {reg_operand, rm_operand};
 }
 
+[[nodiscard]]
 auto disasm_imm(std::ifstream& infile_stream, bool w) -> std::string
 {
         i16 imm{};
@@ -233,7 +241,7 @@ auto write_mov(
         write_inst(outfile_stream, mov_mnem, dst_if_d, src_if_d);
 }
 
-auto decode_d_w(u8 byte) -> std::pair<bool, bool>
+auto decode_low_2bits(u8 byte) -> std::pair<bool, bool>
 {
         bool d = (byte >> 1) & 1;
         bool w = byte & 1;
@@ -287,7 +295,7 @@ auto main(int argc, char** argv) -> int
                 case 0x28 ... 0x2b:
                 case 0x38 ... 0x3b:
                 {
-                        auto [d, w] = decode_d_w(byte);
+                        auto [d, w] = decode_low_2bits(byte);
                         u8 immed = (byte >> 3) & bitmask3;
 
                         auto [reg_operand, rm_operand] =
@@ -300,10 +308,51 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                // immed imm -> acc
+                case 0x04 ... 0x05:
+                case 0x14 ... 0x15:
+                case 0x24 ... 0x25:
+                case 0x34 ... 0x35:
+                case 0x0c ... 0x0d:
+                case 0x1c ... 0x1d:
+                case 0x2c ... 0x2d:
+                case 0x3c ... 0x3d:
+                {
+                        bool w = byte & 1;
+                        u8 immed = (byte >> 3) & bitmask3;
+
+                        auto mnem{immed_mnems[immed]};
+                        auto acc_operand{reg_names[w][acc_reg]};
+                        auto imm_operand = disasm_imm(infile_stream, w);
+
+                        write_inst(
+                                outfile_stream, mnem, acc_operand, imm_operand
+                        );
+                }
+                break;
+
+                        // immed imm -> rm
+                case 0x80 ... 0x83:
+                {
+                        auto [s, w] = decode_low_2bits(byte);
+                        auto [immed, rm_operand] =
+                                disasm_modrm(infile_stream, w);
+
+                        auto mnem{immed_mnems[immed]};
+                        bool is_data_wide = !s && w;
+                        auto imm_operand =
+                                disasm_imm(infile_stream, is_data_wide);
+
+                        write_inst(
+                                outfile_stream, mnem, rm_operand, imm_operand
+                        );
+                }
+                break;
+
                         // mov rm <-> reg
                 case 0x88 ... 0x8b:
                 {
-                        auto [d, w] = decode_d_w(byte);
+                        auto [d, w] = decode_low_2bits(byte);
 
                         auto [reg_operand, rm_operand] =
                                 disasm_reg_rm(infile_stream, w);
@@ -335,7 +384,7 @@ auto main(int argc, char** argv) -> int
                         // mov mem <-> acc
                 case 0xa0 ... 0xa3:
                 {
-                        auto [pseudo_d, w] = decode_d_w(byte);
+                        auto [pseudo_d, w] = decode_low_2bits(byte);
 
                         auto reg_operand = reg_names[w][acc_reg];
                         auto dir_addr_operand = disasm_dir_addr(infile_stream);
