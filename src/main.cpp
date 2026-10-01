@@ -16,6 +16,7 @@ using namespace std::string_view_literals;
 constexpr u8 bitmask3 = 0b111;
 constexpr u8 dir_addr = 0b110;
 constexpr u8 acc_reg = 0;
+constexpr u8 max_sr_val = 3;
 constexpr std::array width_mods{"byte"sv, "word"sv};
 constexpr std::format_string<std::string_view&, std::string_view&> mov_fmt{
         "mov {}, {}\n"
@@ -38,6 +39,7 @@ constexpr std::array eff_addr_exprs{
         "bp"sv,
         "bx"sv,
 };
+constexpr std::array sr_names{"es"sv, "cs"sv, "ss"sv, "ds"sv};
 
 enum class Mod : u8
 {
@@ -246,6 +248,26 @@ auto main(int argc, char** argv) -> int
                         std::string_view reg_operand{reg_names[w][reg]};
 
                         write_mov(outfile_stream, d, reg_operand, rm_operand);
+                }
+                break;
+
+                        // mov rm <-> sr
+                case 0x8c:
+                case 0x8e:
+                {
+                        bool pseudo_d = (byte >> 1) & 1;
+                        bool pseudo_w{true};
+                        auto [sr, rm_operand] =
+                                disasm_modrm(infile_stream, pseudo_w);
+                        if (sr > max_sr_val)
+                        {
+                                std::println("error: invalid sr value");
+                                return EXIT_FAILURE;
+                        }
+                        auto sr_operand = sr_names[sr];
+                        write_mov(
+                                outfile_stream, pseudo_d, sr_operand, rm_operand
+                        );
                 }
                 break;
 
