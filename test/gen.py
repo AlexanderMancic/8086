@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+from typing import TextIO
 
 reg_names = [
     ["al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"],
@@ -51,6 +52,17 @@ imm_literals: list[tuple[str, list[str]]] = [
     ("byte", byte_literals),
     ("word", word_literals),
 ]
+rm_operands: list[list[str]] = [[], []]
+for w in range(2):
+    rm_operands[w].extend(reg_names[w])
+    rm_operands[w].extend(dir_addrs)
+
+    for eff_addr in eff_addr_exprs:
+        if eff_addr == "bp":
+            continue
+
+        for disp in word_literals:
+            rm_operands[w].append(f"[{eff_addr} {disp}]")
 
 
 def append_mov_line_with_d(
@@ -79,38 +91,13 @@ def main():
     with open(output_path, "w") as file:
         file.write("bits 16\n\n")
 
-        # reg <-> reg
+        # reg <-> rm
         lines: list[str] = []
-        for w in range(2):
-            for dst in reg_names[w]:
-                for src in reg_names[w]:
-                    lines.append(f"mov {dst}, {src}\n")
-        file.writelines(lines)
-
-        # reg <-> eff_addr
-        lines = []
-        for w in range(2):
-            for d in range(2):
-                for reg_name in reg_names[w]:
-                    for eff_addr in eff_addr_exprs:
-                        if eff_addr == "bp":
-                            continue
-                        for lit in word_literals:
-                            append_mov_line_with_d(
-                                lines,
-                                d,
-                                reg_name,
-                                f"[{eff_addr} {lit}]",
-                            )
-        file.writelines(lines)
-
-        # reg <-> dir addr
-        lines = []
-        for w in range(2):
-            for d in range(2):
-                for reg_name in reg_names[w]:
-                    for dir_addr in dir_addrs:
-                        append_mov_line_with_d(lines, d, reg_name, dir_addr)
+        for d in range(2):
+            for w in range(2):
+                for rm_operand in rm_operands[w]:
+                    for reg_operand in reg_names[w]:
+                        append_mov_line_with_d(lines, d, reg_operand, rm_operand)
         file.writelines(lines)
 
         lines = []
