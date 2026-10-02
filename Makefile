@@ -2,7 +2,7 @@
 
 CXX := clang++
 CXXFLAGS := \
-	-std=c++26 -stdlib=libc++ -Iinclude -O3 \
+	-std=c++26 -stdlib=libc++ -Iinclude \
 	-Wall -Wextra -Wpedantic -Wno-gnu-case-range
 
 BUILD_DIR := build
@@ -18,11 +18,10 @@ TEST_OUTPUT_BIN := $(BUILD_DIR)/test_output.bin
 
 .PHONY: disassembler
 disassembler: | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) -O3 $(SRC) -o $(TARGET)
 
 $(BUILD_DIR):
 	mkdir -p $@
-
 
 .PHONY: test
 test: disassembler
@@ -32,6 +31,10 @@ test: disassembler
 	nasm -f bin $(TEST_OUTPUT_ASM) -o $(TEST_OUTPUT_BIN)
 	cmp $(TEST_BIN) $(TEST_OUTPUT_BIN)
 	echo "PASS"
+
+.PHONY: debug
+debug: | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -g -O0 $(SRC) -o $(TARGET)
 
 .PHONY: clean
 clean:

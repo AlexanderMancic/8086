@@ -92,8 +92,8 @@ def append_mov_line_with_d(
     lines.append(f"mov {dst}, {src}\n")
 
 
-def append_mov_line_no_d(lines: list[str], dst: str, src: str) -> None:
-    lines.append(f"mov {dst}, {src}\n")
+def append_inst_line_no_d(lines: list[str], mnem: str, dst: str, src: str) -> None:
+    lines.append(f"{mnem} {dst}, {src}\n")
 
 
 def main():
@@ -125,13 +125,15 @@ def main():
         lines = []
         for w in range(2):
             width_mod, lits_for_width = imm_literals[w]
-            for imm in lits_for_width:
-                for rm_operand in rm_operands[w]:
-                    append_mov_line_no_d(
-                        lines,
-                        rm_operand,
-                        f"{width_mod} {imm}",
-                    )
+            for mnem in mnems:
+                for imm in lits_for_width:
+                    for rm_operand in rm_operands[w]:
+                        append_inst_line_no_d(
+                            lines,
+                            mnem,
+                            rm_operand,
+                            f"{width_mod} {imm}",
+                        )
         file.writelines(lines)
 
         # sr <-> rm

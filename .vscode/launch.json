@@ -1,0 +1,17 @@
+{
+    "$schema": "https://raw.githubusercontent.com/mfussenegger/dapconfig-schema/master/dapconfig-schema.json",
+    "version": "0.2.0",
+    "configurations": [
+			{
+            "name": "Debug disassembler",
+            "type": "codelldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/disassembler",
+            "args": [
+                "${workspaceFolder}/build/test.bin",
+                "${workspaceFolder}/build/test_output.asm"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
