@@ -339,9 +339,19 @@ auto main(int argc, char** argv) -> int
                                 disasm_modrm(infile_stream, w);
 
                         auto mnem{immed_mnems[immed]};
-                        bool is_data_wide = !s && w;
+                        bool read_word = !s && w;
+
+                        i16 imm{};
+                        if (read_word)
+                        {
+                                imm = read_i16(infile_stream);
+                        }
+                        else
+                        {
+                                imm = read_i8(infile_stream);
+                        }
                         auto imm_operand =
-                                disasm_imm(infile_stream, is_data_wide);
+                                std::format("{} {}", width_mods[w], imm);
 
                         write_inst(
                                 outfile_stream, mnem, rm_operand, imm_operand
