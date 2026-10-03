@@ -3,13 +3,13 @@
     "version": "0.2.0",
     "configurations": [
 			{
-            "name": "Debug disassembler",
+            "name": "Debug diff",
             "type": "codelldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/disassembler",
             "args": [
-                "${workspaceFolder}/build/test.bin",
-                "${workspaceFolder}/build/test_output.asm"
+                "${workspaceFolder}/build/diff.bin",
+                "${workspaceFolder}/build/diff_output.asm"
             ],
             "cwd": "${workspaceFolder}"
         }
