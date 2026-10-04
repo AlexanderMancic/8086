@@ -331,6 +331,22 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                        // push/pop reg
+                case 0x50 ... 0x5f:
+                {
+                        constexpr bool w{true};
+                        bool is_pop = (byte >> 3) & 1;
+                        u8 reg = byte & bitmask3;
+
+                        constexpr std::array mnems{"push"sv, "pop"sv};
+                        auto mnem{mnems[is_pop]};
+                        auto reg_operand{reg_names[w][reg]};
+
+                        outfile_stream
+                                << std::format("{} {}\n", mnem, reg_operand);
+                }
+                break;
+
                         // immed imm -> rm
                 case 0x80 ... 0x83:
                 {
