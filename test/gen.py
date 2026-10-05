@@ -194,6 +194,13 @@ def main():
                 lines.append(f"{mnem} $ {inc}\n")
         file.writelines(lines)
 
+        # xchg acc <-> reg
+        lines = []
+        w = 1
+        for reg_name in reg_names[w]:
+            lines.append(f"xchg ax, {reg_name}\n")
+        file.writelines(lines)
+
 
 if __name__ == "__main__":
     main()

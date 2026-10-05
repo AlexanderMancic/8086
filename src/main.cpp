@@ -469,6 +469,29 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                        // nop (xchg ax, ax)
+                case 0x90:
+                {
+                        outfile_stream << "nop\n";
+                }
+                break;
+
+                        // xchg acc <-> reg
+                case 0x91 ... 0x97:
+                {
+                        constexpr bool w{true};
+                        u8 reg = byte & bitmask3;
+
+                        constexpr auto mnem{"xchg"sv};
+                        constexpr auto acc_operand{reg_names[w][acc_reg]};
+                        auto reg_operand{reg_names[w][reg]};
+
+                        write_inst_bin(
+                                outfile_stream, mnem, acc_operand, reg_operand
+                        );
+                }
+                break;
+
                         // mov mem <-> acc
                 case 0xa0 ... 0xa3:
                 {
