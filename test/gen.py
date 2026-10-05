@@ -52,7 +52,18 @@ imm_literals: list[tuple[str, list[str]]] = [
     ("byte", byte_literals),
     ("word", word_literals),
 ]
-mnems: list[str] = ["mov", "add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
+bin_mnems: list[str] = [
+    "mov",
+    "add",
+    "or",
+    "adc",
+    "sbb",
+    "and",
+    "sub",
+    "xor",
+    "cmp",
+]
+unary_mnems: list[str] = ["push", "pop"]
 rm_operands: list[list[str]] = [[], []]
 for w in range(2):
     rm_operands[w].extend(reg_names[w])
@@ -109,7 +120,7 @@ def main():
         lines: list[str] = []
         for d in range(2):
             for w in range(2):
-                for mnem in mnems:
+                for mnem in bin_mnems:
                     for rm_operand in rm_operands[w]:
                         for reg_operand in reg_names[w]:
                             append_inst_line_with_d(
@@ -125,7 +136,7 @@ def main():
         lines = []
         for w in range(2):
             width_mod, lits_for_width = imm_literals[w]
-            for mnem in mnems:
+            for mnem in bin_mnems:
                 for imm in lits_for_width:
                     for rm_operand in rm_operands[w]:
                         append_inst_line_no_d(
@@ -143,6 +154,14 @@ def main():
             for rm_operand in rm_operands[w]:
                 for sr_operand in sr_names:
                     append_mov_line_with_d(lines, d, sr_operand, rm_operand)
+        file.writelines(lines)
+
+        # unary reg
+        lines = []
+        w = 1
+        for mnem in unary_mnems:
+            for reg_name in reg_names[w]:
+                lines.append(f"{mnem} {reg_name}\n")
         file.writelines(lines)
 
 
