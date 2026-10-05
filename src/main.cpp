@@ -188,7 +188,7 @@ auto disasm_imm(std::ifstream& infile_stream, bool w) -> std::string
         return std::format("{} {}", width_mods[w], imm);
 }
 
-auto write_inst(
+auto write_inst_bin(
         std::ofstream& outfile_stream,
         bool d,
         std::string_view mnem,
@@ -213,7 +213,7 @@ auto write_inst(
         outfile_stream << std::format(bin_inst_fmt, mnem, dst, src);
 }
 
-auto write_inst(
+auto write_inst_bin(
         std::ofstream& outfile_stream,
         std::string_view mnem,
         std::string_view dst,
@@ -230,7 +230,7 @@ auto write_mov(
         std::string_view src_if_d
 ) -> void
 {
-        write_inst(outfile_stream, d, mov_mnem, dst_if_d, src_if_d);
+        write_inst_bin(outfile_stream, d, mov_mnem, dst_if_d, src_if_d);
 }
 auto write_mov(
         std::ofstream& outfile_stream,
@@ -238,7 +238,23 @@ auto write_mov(
         std::string_view src_if_d
 ) -> void
 {
-        write_inst(outfile_stream, mov_mnem, dst_if_d, src_if_d);
+        write_inst_bin(outfile_stream, mov_mnem, dst_if_d, src_if_d);
+}
+
+auto write_inst_unary(
+        std::ofstream& outfile_stream,
+        u8 byte,
+        std::array<std::string_view, 2> mnems
+) -> void
+{
+        constexpr bool w{true};
+        bool is_second_mnem = (byte >> 3) & 1;
+        u8 reg = byte & bitmask3;
+
+        auto mnem{mnems[is_second_mnem]};
+        auto reg_operand{reg_names[w][reg]};
+
+        outfile_stream << std::format("{} {}\n", mnem, reg_operand);
 }
 
 auto decode_low_2bits(u8 byte) -> std::pair<bool, bool>
@@ -302,7 +318,7 @@ auto main(int argc, char** argv) -> int
                                 disasm_reg_rm(infile_stream, w);
                         auto mnem{immed_mnems[immed]};
 
-                        write_inst(
+                        write_inst_bin(
                                 outfile_stream, d, mnem, reg_operand, rm_operand
                         );
                 }
@@ -325,7 +341,7 @@ auto main(int argc, char** argv) -> int
                         auto acc_operand{reg_names[w][acc_reg]};
                         auto imm_operand = disasm_imm(infile_stream, w);
 
-                        write_inst(
+                        write_inst_bin(
                                 outfile_stream, mnem, acc_operand, imm_operand
                         );
                 }
@@ -334,33 +350,16 @@ auto main(int argc, char** argv) -> int
                         // inc/dec reg
                 case 0x40 ... 0x4f:
                 {
-                        // TODO: compress with next case
-                        constexpr bool w{true};
-                        bool is_dec = (byte >> 3) & 1;
-                        u8 reg = byte & bitmask3;
-
                         constexpr std::array mnems{"inc"sv, "dec"sv};
-                        auto mnem{mnems[is_dec]};
-                        auto reg_operand{reg_names[w][reg]};
-
-                        outfile_stream
-                                << std::format("{} {}\n", mnem, reg_operand);
+                        write_inst_unary(outfile_stream, byte, mnems);
                 }
                 break;
 
                         // push/pop reg
                 case 0x50 ... 0x5f:
                 {
-                        constexpr bool w{true};
-                        bool is_pop = (byte >> 3) & 1;
-                        u8 reg = byte & bitmask3;
-
                         constexpr std::array mnems{"push"sv, "pop"sv};
-                        auto mnem{mnems[is_pop]};
-                        auto reg_operand{reg_names[w][reg]};
-
-                        outfile_stream
-                                << std::format("{} {}\n", mnem, reg_operand);
+                        write_inst_unary(outfile_stream, byte, mnems);
                 }
                 break;
 
@@ -386,7 +385,7 @@ auto main(int argc, char** argv) -> int
                         auto imm_operand =
                                 std::format("{} {}", width_mods[w], imm);
 
-                        write_inst(
+                        write_inst_bin(
                                 outfile_stream, mnem, rm_operand, imm_operand
                         );
                 }
