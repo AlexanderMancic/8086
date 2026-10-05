@@ -103,6 +103,11 @@ auto disasm_dir_addr(std::ifstream& infile_stream) -> std::string
         return std::format("[{}]", dir_addr);
 }
 
+[[nodiscard]] auto disasm_sign(i16 val) -> char
+{
+        return val < 0 ? '-' : '+';
+}
+
 [[nodiscard]]
 auto disasm_modrm(std::ifstream& infile_stream, bool w)
         -> std::pair<u8, std::string>
@@ -136,7 +141,7 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
                 rm_operand = std::format(
                         "[{} {} {}]",
                         eff_addr_exprs[rm],
-                        disp < 0 ? '-' : '+',
+                        disasm_sign(disp),
                         std::abs(disp)
                 );
         }
@@ -148,7 +153,7 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
                 rm_operand = std::format(
                         "[{} {} {}]",
                         eff_addr_exprs[rm],
-                        disp < 0 ? '-' : '+',
+                        disasm_sign(disp),
                         std::abs(disp)
                 );
         }
@@ -360,6 +365,45 @@ auto main(int argc, char** argv) -> int
                 {
                         constexpr std::array mnems{"push"sv, "pop"sv};
                         write_inst_unary(outfile_stream, byte, mnems);
+                }
+                break;
+
+                        // cjmp
+                case 0x70 ... 0x7f:
+                {
+                        constexpr std::array mnems{
+                                "jo"sv,
+                                "jno"sv,
+                                "jb"sv,
+                                "jae"sv,
+                                "je"sv,
+                                "jne"sv,
+                                "jbe"sv,
+                                "ja"sv,
+                                "js"sv,
+                                "jns"sv,
+                                "jp"sv,
+                                "jnp"sv,
+                                "jl"sv,
+                                "jge"sv,
+                                "jle"sv,
+                                "jg"sv,
+                        };
+                        constexpr u8 hi_nibble_val{0x70};
+                        u8 mnem_idx = byte - hi_nibble_val;
+                        i16 ip_inc{read_i8(infile_stream)};
+                        constexpr i16 cjmp_inst_len{2};
+                        i16 output_ip_inc = ip_inc - cjmp_inst_len;
+
+                        auto mnem{mnems[mnem_idx]};
+                        auto ip_inc_operand{std::format("{}", output_ip_inc)};
+
+                        outfile_stream << std::format(
+                                "{} $ {} {}\n",
+                                mnem,
+                                disasm_sign(output_ip_inc),
+                                ip_inc_operand
+                        );
                 }
                 break;
 
