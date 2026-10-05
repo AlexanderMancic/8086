@@ -393,10 +393,12 @@ auto main(int argc, char** argv) -> int
                         u8 mnem_idx = byte - hi_nibble_val;
                         i16 ip_inc{read_i8(infile_stream)};
                         constexpr i16 cjmp_inst_len{2};
-                        i16 output_ip_inc = ip_inc - cjmp_inst_len;
+                        i16 output_ip_inc = ip_inc + cjmp_inst_len;
 
                         auto mnem{mnems[mnem_idx]};
-                        auto ip_inc_operand{std::format("{}", output_ip_inc)};
+                        auto ip_inc_operand{
+                                std::format("{}", std::abs(output_ip_inc))
+                        };
 
                         outfile_stream << std::format(
                                 "{} $ {} {}\n",
