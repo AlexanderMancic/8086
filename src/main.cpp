@@ -331,6 +331,23 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                        // inc/dec reg
+                case 0x40 ... 0x4f:
+                {
+                        // TODO: compress with next case
+                        constexpr bool w{true};
+                        bool is_dec = (byte >> 3) & 1;
+                        u8 reg = byte & bitmask3;
+
+                        constexpr std::array mnems{"inc"sv, "dec"sv};
+                        auto mnem{mnems[is_dec]};
+                        auto reg_operand{reg_names[w][reg]};
+
+                        outfile_stream
+                                << std::format("{} {}\n", mnem, reg_operand);
+                }
+                break;
+
                         // push/pop reg
                 case 0x50 ... 0x5f:
                 {

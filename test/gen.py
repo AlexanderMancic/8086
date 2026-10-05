@@ -63,7 +63,7 @@ bin_mnems: list[str] = [
     "xor",
     "cmp",
 ]
-unary_mnems: list[str] = ["push", "pop"]
+unary_mnems: list[str] = ["push", "pop", "inc", "dec"]
 rm_operands: list[list[str]] = [[], []]
 for w in range(2):
     rm_operands[w].extend(reg_names[w])
