@@ -64,7 +64,7 @@ bin_mnems: list[str] = [
     "cmp",
 ]
 unary_mnems: list[str] = ["push", "pop", "inc", "dec"]
-cjmp_mnems: list[str] = [
+cjmp_loop_mnems: list[str] = [
     "jo",
     "jno",
     "jb",
@@ -81,6 +81,10 @@ cjmp_mnems: list[str] = [
     "jge",
     "jle",
     "jg",
+    "loopnz",
+    "loopz",
+    "loop",
+    "jcxz",
 ]
 cjmp_incs: list[str] = byte_literals[2:] + [
     "- 126",
@@ -187,9 +191,9 @@ def main():
                 lines.append(f"{mnem} {reg_name}\n")
         file.writelines(lines)
 
-        # cjump
+        # cjump and loops
         lines = []
-        for mnem in cjmp_mnems:
+        for mnem in cjmp_loop_mnems:
             for inc in cjmp_incs:
                 lines.append(f"{mnem} $ {inc}\n")
         file.writelines(lines)

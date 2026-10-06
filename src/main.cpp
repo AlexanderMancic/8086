@@ -543,6 +543,34 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                        // loops
+                case 0xe0 ... 0xe3:
+                {
+                        // TODO: compress with cjmps
+
+                        constexpr std::array mnems{
+                                "loopnz"sv, "loopz"sv, "loop"sv, "jcxz"sv
+                        };
+                        constexpr u8 inst_base{0xe0};
+                        u8 mnem_idx = byte - inst_base;
+                        auto mnem{mnems[mnem_idx]};
+
+                        i16 ip_inc{read_i8(infile_stream)};
+                        constexpr i16 loop_inst_len{2};
+                        i16 output_ip_inc = ip_inc + loop_inst_len;
+                        auto ip_inc_operand{
+                                std::format("{}", std::abs(output_ip_inc))
+                        };
+
+                        outfile_stream << std::format(
+                                "{} $ {} {}\n",
+                                mnem,
+                                disasm_sign(output_ip_inc),
+                                ip_inc_operand
+                        );
+                }
+                break;
+
                 default:
                 {
                         std::println(
