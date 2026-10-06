@@ -421,6 +421,34 @@ auto main(int argc, char** argv) -> int
                 break;
 #endif
 
+                        // daa
+                case 0x27:
+                {
+                        outfile_stream << "daa\n";
+                }
+                break;
+
+                        // aaa
+                case 0x37:
+                {
+                        outfile_stream << "aaa\n";
+                }
+                break;
+
+                        // das
+                case 0x2f:
+                {
+                        outfile_stream << "das\n";
+                }
+                break;
+
+                        // aas
+                case 0x3f:
+                {
+                        outfile_stream << "aas\n";
+                }
+                break;
+
                         // cjmp
                 case 0x70 ... 0x7f:
                 {

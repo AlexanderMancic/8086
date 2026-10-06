@@ -215,6 +215,13 @@ def main():
             lines.append(f"xchg ax, {reg_name}\n")
         file.writelines(lines)
 
+        # no operand inst
+        lines = []
+        mnems: list[str] = ["daa", "aaa", "das", "aas"]
+        for mnem in mnems:
+            lines.append(f"{mnem}\n")
+        file.writelines(lines)
+
 
 if __name__ == "__main__":
     main()
