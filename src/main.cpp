@@ -11,6 +11,7 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using i8 = int8_t;
 using i16 = int16_t;
+using usize = std::size_t;
 using namespace std::string_view_literals;
 
 constexpr u8 bitmask3 = 0b111;
@@ -262,6 +263,28 @@ auto write_inst_unary(
         outfile_stream << std::format("{} {}\n", mnem, reg_operand);
 }
 
+template <usize N>
+auto write_inst_ip_inc_8(
+        std::ifstream& infile_stream,
+        const std::array<std::string_view, N>& mnems,
+        u8 byte,
+        u8 inst_base,
+        std::ofstream& outfile_stream
+) -> void
+{
+        u8 mnem_idx = byte - inst_base;
+        auto mnem{mnems[mnem_idx]};
+
+        i16 ip_inc{read_i8(infile_stream)};
+        constexpr i16 inst_len{2};
+        i16 output_ip_inc = ip_inc + inst_len;
+        auto ip_inc_operand{std::format("{}", std::abs(output_ip_inc))};
+
+        outfile_stream << std::format(
+                "{} $ {} {}\n", mnem, disasm_sign(output_ip_inc), ip_inc_operand
+        );
+}
+
 auto decode_low_2bits(u8 byte) -> std::pair<bool, bool>
 {
         bool d = (byte >> 1) & 1;
@@ -389,22 +412,14 @@ auto main(int argc, char** argv) -> int
                                 "jle"sv,
                                 "jg"sv,
                         };
-                        constexpr u8 hi_nibble_val{0x70};
-                        u8 mnem_idx = byte - hi_nibble_val;
-                        i16 ip_inc{read_i8(infile_stream)};
-                        constexpr i16 cjmp_inst_len{2};
-                        i16 output_ip_inc = ip_inc + cjmp_inst_len;
+                        constexpr u8 inst_base{0x70};
 
-                        auto mnem{mnems[mnem_idx]};
-                        auto ip_inc_operand{
-                                std::format("{}", std::abs(output_ip_inc))
-                        };
-
-                        outfile_stream << std::format(
-                                "{} $ {} {}\n",
-                                mnem,
-                                disasm_sign(output_ip_inc),
-                                ip_inc_operand
+                        write_inst_ip_inc_8(
+                                infile_stream,
+                                mnems,
+                                byte,
+                                inst_base,
+                                outfile_stream
                         );
                 }
                 break;
@@ -546,27 +561,17 @@ auto main(int argc, char** argv) -> int
                         // loops
                 case 0xe0 ... 0xe3:
                 {
-                        // TODO: compress with cjmps
-
                         constexpr std::array mnems{
                                 "loopnz"sv, "loopz"sv, "loop"sv, "jcxz"sv
                         };
                         constexpr u8 inst_base{0xe0};
-                        u8 mnem_idx = byte - inst_base;
-                        auto mnem{mnems[mnem_idx]};
 
-                        i16 ip_inc{read_i8(infile_stream)};
-                        constexpr i16 loop_inst_len{2};
-                        i16 output_ip_inc = ip_inc + loop_inst_len;
-                        auto ip_inc_operand{
-                                std::format("{}", std::abs(output_ip_inc))
-                        };
-
-                        outfile_stream << std::format(
-                                "{} $ {} {}\n",
-                                mnem,
-                                disasm_sign(output_ip_inc),
-                                ip_inc_operand
+                        write_inst_ip_inc_8(
+                                infile_stream,
+                                mnems,
+                                byte,
+                                inst_base,
+                                outfile_stream
                         );
                 }
                 break;
