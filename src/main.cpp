@@ -410,6 +410,17 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+#if 0
+                        // seg
+                case 0x26:
+                case 0x36:
+                case 0x2e:
+                case 0x3e:
+                {
+                }
+                break;
+#endif
+
                         // cjmp
                 case 0x70 ... 0x7f:
                 {
