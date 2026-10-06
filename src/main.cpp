@@ -247,7 +247,7 @@ auto write_mov(
         write_inst_bin(outfile_stream, mov_mnem, dst_if_d, src_if_d);
 }
 
-auto write_inst_unary(
+auto write_inst_unary_reg(
         std::ofstream& outfile_stream,
         u8 byte,
         std::array<std::string_view, 2> mnems
@@ -379,7 +379,7 @@ auto main(int argc, char** argv) -> int
                 case 0x40 ... 0x4f:
                 {
                         constexpr std::array mnems{"inc"sv, "dec"sv};
-                        write_inst_unary(outfile_stream, byte, mnems);
+                        write_inst_unary_reg(outfile_stream, byte, mnems);
                 }
                 break;
 
@@ -387,7 +387,26 @@ auto main(int argc, char** argv) -> int
                 case 0x50 ... 0x5f:
                 {
                         constexpr std::array mnems{"push"sv, "pop"sv};
-                        write_inst_unary(outfile_stream, byte, mnems);
+                        write_inst_unary_reg(outfile_stream, byte, mnems);
+                }
+                break;
+
+                        // push/pop sr
+                case 0x06 ... 0x07:
+                case 0x16 ... 0x17:
+                case 0x0e ... 0x0e:
+                case 0x1e ... 0x1f:
+                {
+                        bool is_pop = byte & 1;
+                        u8 sr_reg = byte >> 3;
+
+                        constexpr std::array mnems{"push"sv, "pop"sv};
+
+                        auto mnem{mnems[is_pop]};
+                        auto reg_operand{sr_names[sr_reg]};
+
+                        outfile_stream
+                                << std::format("{} {}\n", mnem, reg_operand);
                 }
                 break;
 

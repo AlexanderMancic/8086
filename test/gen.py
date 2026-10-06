@@ -191,6 +191,16 @@ def main():
                 lines.append(f"{mnem} {reg_name}\n")
         file.writelines(lines)
 
+        # unary sr
+        lines = []
+        w = 1
+        for mnem in unary_mnems[:2]:
+            for sr_name in sr_names:
+                if mnem == "pop" and sr_name == "cs":
+                    continue
+                lines.append(f"{mnem} {sr_name}\n")
+        file.writelines(lines)
+
         # cjump and loops
         lines = []
         for mnem in cjmp_loop_mnems:
