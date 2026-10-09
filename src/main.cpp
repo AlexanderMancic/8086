@@ -98,10 +98,13 @@ auto read_i16(std::ifstream& infile_stream) -> i16
 }
 
 [[nodiscard]]
-auto disasm_dir_addr(std::ifstream& infile_stream) -> std::string
+auto disasm_dir_addr(std::ifstream& infile_stream, std::string_view& seg)
+        -> std::string
 {
         u16 dir_addr = read_word(infile_stream);
-        return std::format("[{}]", dir_addr);
+        auto disasm = std::format("[{}{}]", seg, dir_addr);
+        seg = {};
+        return disasm;
 }
 
 [[nodiscard]] auto disasm_sign(i16 val) -> char
@@ -110,7 +113,7 @@ auto disasm_dir_addr(std::ifstream& infile_stream) -> std::string
 }
 
 [[nodiscard]]
-auto disasm_modrm(std::ifstream& infile_stream, bool w)
+auto disasm_modrm(std::ifstream& infile_stream, bool w, std::string_view& seg)
         -> std::pair<u8, std::string>
 {
         const u8 byte = read_byte(infile_stream);
@@ -127,7 +130,7 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
         {
                 if (rm == dir_addr)
                 {
-                        rm_operand = disasm_dir_addr(infile_stream);
+                        rm_operand = disasm_dir_addr(infile_stream, seg);
                 }
                 else
                 {
@@ -140,11 +143,13 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
         {
                 i8 disp = read_i8(infile_stream);
                 rm_operand = std::format(
-                        "[{} {} {}]",
+                        "[{}{} {} {}]",
+                        seg,
                         eff_addr_exprs[rm],
                         disasm_sign(disp),
                         std::abs(disp)
                 );
+                seg = {};
         }
         break;
 
@@ -152,11 +157,13 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
         {
                 i16 disp = read_i16(infile_stream);
                 rm_operand = std::format(
-                        "[{} {} {}]",
+                        "[{}{} {} {}]",
+                        seg,
                         eff_addr_exprs[rm],
                         disasm_sign(disp),
                         std::abs(disp)
                 );
+                seg = {};
         }
         break;
 
@@ -171,10 +178,10 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w)
 }
 
 [[nodiscard]]
-auto disasm_reg_rm(std::ifstream& infile_stream, bool w)
+auto disasm_reg_rm(std::ifstream& infile_stream, bool w, std::string_view& seg)
         -> std::pair<std::string_view, std::string>
 {
-        auto [reg, rm_operand] = disasm_modrm(infile_stream, w);
+        auto [reg, rm_operand] = disasm_modrm(infile_stream, w, seg);
         auto reg_operand{reg_names[w][reg]};
         return {reg_operand, rm_operand};
 }
@@ -325,6 +332,7 @@ auto main(int argc, char** argv) -> int
 
         outfile_stream << "bits 16\n\n";
         u8 byte;
+        std::string_view seg{};
         while (infile_stream.read(reinterpret_cast<char*>(&byte), sizeof(byte)))
         {
                 switch (byte)
@@ -343,7 +351,7 @@ auto main(int argc, char** argv) -> int
                         u8 immed = (byte >> 3) & bitmask3;
 
                         auto [reg_operand, rm_operand] =
-                                disasm_reg_rm(infile_stream, w);
+                                disasm_reg_rm(infile_stream, w, seg);
                         auto mnem{immed_mnems[immed]};
 
                         write_inst_bin(
@@ -410,16 +418,33 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
-#if 0
-                        // seg
+                        // seg es
                 case 0x26:
-                case 0x36:
-                case 0x2e:
-                case 0x3e:
                 {
+                        seg = "es: ";
                 }
                 break;
-#endif
+
+                        // seg ss
+                case 0x36:
+                {
+                        seg = "ss: ";
+                }
+                break;
+
+                        // seg cs
+                case 0x2e:
+                {
+                        seg = "cs: ";
+                }
+                break;
+
+                        // seg ds
+                case 0x3e:
+                {
+                        seg = "ds: ";
+                }
+                break;
 
                         // daa
                 case 0x27:
@@ -487,7 +512,7 @@ auto main(int argc, char** argv) -> int
                 {
                         auto [s, w] = decode_low_2bits(byte);
                         auto [immed, rm_operand] =
-                                disasm_modrm(infile_stream, w);
+                                disasm_modrm(infile_stream, w, seg);
 
                         auto mnem{immed_mnems[immed]};
                         bool read_word = !s && w;
@@ -516,7 +541,7 @@ auto main(int argc, char** argv) -> int
                         auto [d, w] = decode_low_2bits(byte);
 
                         auto [reg_operand, rm_operand] =
-                                disasm_reg_rm(infile_stream, w);
+                                disasm_reg_rm(infile_stream, w, seg);
 
                         write_mov(outfile_stream, d, reg_operand, rm_operand);
                 }
@@ -529,7 +554,7 @@ auto main(int argc, char** argv) -> int
                         bool pseudo_d = (byte >> 1) & 1;
                         bool pseudo_w{true};
                         auto [sr, rm_operand] =
-                                disasm_modrm(infile_stream, pseudo_w);
+                                disasm_modrm(infile_stream, pseudo_w, seg);
                         if (sr > max_sr_val)
                         {
                                 std::println("error: invalid sr value");
@@ -571,7 +596,8 @@ auto main(int argc, char** argv) -> int
                         auto [pseudo_d, w] = decode_low_2bits(byte);
 
                         auto reg_operand = reg_names[w][acc_reg];
-                        auto dir_addr_operand = disasm_dir_addr(infile_stream);
+                        auto dir_addr_operand =
+                                disasm_dir_addr(infile_stream, seg);
 
                         write_mov(
                                 outfile_stream,
@@ -602,7 +628,7 @@ auto main(int argc, char** argv) -> int
                         bool w = byte & 1;
 
                         auto [extension, rm_operand] =
-                                disasm_modrm(infile_stream, w);
+                                disasm_modrm(infile_stream, w, seg);
 
                         if (extension != 0)
                         {
