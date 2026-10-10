@@ -91,6 +91,7 @@ cjmp_incs: list[str] = byte_literals[2:] + [
     "+ 128",
     "+ 129",
 ]
+segs: list[str] = ["", "es: ", "ss: ", "cs: ", "ds: "]
 rm_operands: list[list[str]] = [[], []]
 for w in range(2):
     rm_operands[w].extend(reg_names[w])
@@ -101,7 +102,8 @@ for w in range(2):
             continue
 
         for disp in word_literals:
-            rm_operands[w].append(f"[{eff_addr} {disp}]")
+            for seg in segs:
+                rm_operands[w].append(f"[{seg}{eff_addr} {disp}]")
 
 
 def append_inst_line_with_d(
