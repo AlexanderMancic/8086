@@ -9,3 +9,4 @@ byte=$(
 )
 
 dd if="$test" of=build/diff.bin bs=1 skip=$((byte - 1)) status=none
+make debug

@@ -134,7 +134,9 @@ auto disasm_modrm(std::ifstream& infile_stream, bool w, std::string_view& seg)
                 }
                 else
                 {
-                        rm_operand = std::format("[{}]", eff_addr_exprs[rm]);
+                        rm_operand =
+                                std::format("[{}{}]", seg, eff_addr_exprs[rm]);
+                        seg = {};
                 }
         }
         break;
