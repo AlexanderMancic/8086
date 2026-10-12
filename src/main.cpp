@@ -644,6 +644,22 @@ auto main(int argc, char** argv) -> int
                 }
                 break;
 
+                        // esc
+                case 0xd8 ... 0xdf:
+                {
+                        constexpr bool w{true};
+                        u8 xxx = byte & bitmask3;
+                        auto [yyy, rm_src] =
+                                disasm_modrm(infile_stream, w, seg);
+                        auto external_opcode =
+                                std::format("{}", ((xxx << 3) | yyy));
+
+                        write_inst_bin(
+                                outfile_stream, "esc"sv, external_opcode, rm_src
+                        );
+                }
+                break;
+
                         // loops
                 case 0xe0 ... 0xe3:
                 {

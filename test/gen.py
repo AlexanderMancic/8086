@@ -224,6 +224,14 @@ def main():
             lines.append(f"{mnem}\n")
         file.writelines(lines)
 
+        # esc
+        lines = []
+        w = 1
+        for ext_opcode in range(64):
+            for rm_operand in rm_operands[w]:
+                lines.append(f"esc {ext_opcode}, {rm_operand}\n")
+        file.writelines(lines)
+
 
 if __name__ == "__main__":
     main()
